@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # coding=utf-8
+
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,7 +8,17 @@ import numpy as np
 #from numpy import linalg as LA
 from pylab import *
 
+import matplotlib
+matplotlib.use('TkAgg')
 
+import pylab as PL
+import random as RD
+import scipy as SP
+
+
+########################################################################################################
+#####################################    Mathematic Representation     #################################
+########################################################################################################
 
 
 #Common Formulas
@@ -49,6 +60,11 @@ Wms = Whs
 Wbs = Wms
 
 
+########################################################################################################
+#####################################    ABM    ########################################################
+########################################################################################################
+
+
 n = 1000 # number of agents
 class agent:
     pass
@@ -67,20 +83,20 @@ def initialize():
 
 def observe():
     global agents
-    cla()
+    cla() #Clear the graph
     rabbits = [ag for ag in agents if ag.type == 'r']
     if len(rabbits) > 0:
         x = [ag.x for ag in rabbits]
         y = [ag.y for ag in rabbits]
-        plot(x, y, ’b.’)
+        plot(x, y, 'b.')
 
     
-    foxes = [ag for ag in agents if ag.type == ’f’]
+    foxes = [ag for ag in agents if ag.type == 'f']
     if len(foxes) > 0:
         x = [ag.x for ag in foxes]
         y = [ag.y for ag in foxes]
-        plot(x, y, ’ro’)
-    axis(’image’)
+        plot(x, y, 'ro')
+    axis('image')
     axis([0, 1, 0, 1])
 
 
@@ -95,6 +111,7 @@ mf = 0.05 # magnitude of movement of foxes
 #rf = 0.5 # reproduction rate of foxes
 cd = 0.02 # radius for collision detection
 cdsq = cd ** 2
+broadcast = True
 
 
 def update():
@@ -103,9 +120,9 @@ def update():
         return
     ag = agents[randint(len(agents))]
     # simulating random movement
-    if ag.type == 'r':
-        m = mr 
-    else:
+    if ag.type == 'r': #and not stay:
+        m = mr
+    if ag.type == 'f': #and not consuming
         m = mf
     ag.x += uniform(-m, m)
     ag.y += uniform(-m, m)
@@ -115,19 +132,27 @@ def update():
     # detecting collision 
     neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
 
-    if ag.type == 'r': #if Agent is rabit
+    if ag.type == 'r': #if Agent is rabbit
         if len(neighbors) > 0: # if there are foxes nearby
-            #Fox/s start consuming rabits
+            #Relocate 
+            #ag.stay = False
             return
 
     else: #if Agent is fox
         if len(neighbors) == 0: # if there are no rabbits nearby
-            #Initiate Search
+            #Initiate Random Search 
             return
         else: # if there are rabbits nearby
-            #Initiate call
-            #Initiate consuption
-            return
+            if broadcast:
+                #Fox initiates Broadcast
+                #Teleport closest Fox/s
+                #Fox/s initiate consuption => Num_times_Foxs_ate = Num_times_Foxs_ate + 1
+                #ag.consume=True
+                return
+            else:
+                #Fox/s initiate consuption => Num_times_Foxs_ate = Num_times_Foxs_ate + 1
+                return
+                
 
 
 
