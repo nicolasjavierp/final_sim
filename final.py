@@ -15,6 +15,8 @@ import pylab as PL
 import random as RD
 import scipy as SP
 
+import copy as cp
+
 
 ########################################################################################################
 #####################################    Mathematic Representation     #################################
@@ -104,11 +106,11 @@ def observe():
 
 nr = 500. # carrying capacity of rabbits
 mr = 0.03 # magnitude of movement of rabbits
-#dr = 1.0 # death rate of rabbits when it faces foxes
-#rr = 0.1 # reproduction rate of rabbits
+dr = 1.0 # death rate of rabbits when it faces foxes
+rr = 0.1 # reproduction rate of rabbits
 mf = 0.05 # magnitude of movement of foxes
-#df = 0.1 # death rate of foxes when there is no food
-#rf = 0.5 # reproduction rate of foxes
+df = 0.1 # death rate of foxes when there is no food
+rf = 0.5 # reproduction rate of foxes
 cd = 0.02 # radius for collision detection
 cdsq = cd ** 2
 broadcast = True
@@ -136,13 +138,23 @@ def update():
         if len(neighbors) > 0: # if there are foxes nearby
             #Relocate 
             #ag.stay = False
-            return
-
+            if random() < dr:
+                agents.remove(ag)
+                return
+            if random() < rr*(1-sum(1 for x in agents if x.type == 'r')/nr):
+                agents.append(cp.copy(ag))
+            
     else: #if Agent is fox
+
         if len(neighbors) == 0: # if there are no rabbits nearby
             #Initiate Random Search 
-            return
+            if random() < df:
+                agents.remove(ag)
+                return
+
         else: # if there are rabbits nearby
+            if random() < rf:
+                agents.append(cp.copy(ag))
             if broadcast:
                 #Fox initiates Broadcast
                 #Teleport closest Fox/s
@@ -152,8 +164,14 @@ def update():
             else:
                 #Fox/s initiate consuption => Num_times_Foxs_ate = Num_times_Foxs_ate + 1
                 return
-                
 
+        
+def update_one_unit_time():
+    global agents
+    t = 0.
+    while t < 1.:
+        t += 1. / len(agents)
+        update()
 
 
 
