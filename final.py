@@ -122,10 +122,11 @@ def update():
         return
     ag = agents[randint(len(agents))]
     # simulating random movement
-    if ag.type == 'r': #and not stay:
-        m = mr
-    if ag.type == 'f': #and not consuming
-        m = mf
+    #if ag.type == 'r': #and not stay:
+    #    m = mr
+    #if ag.type == 'f': #and not consuming
+    #    m = mf
+    m = mr if ag.type == 'r' else mf
     ag.x += uniform(-m, m)
     ag.y += uniform(-m, m)
     ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
@@ -155,15 +156,15 @@ def update():
         else: # if there are rabbits nearby
             if random() < rf:
                 agents.append(cp.copy(ag))
-            if broadcast:
+            #if broadcast:
                 #Fox initiates Broadcast
                 #Teleport closest Fox/s
                 #Fox/s initiate consuption => Num_times_Foxs_ate = Num_times_Foxs_ate + 1
                 #ag.consume=True
-                return
-            else:
+                #return
+            #else:
                 #Fox/s initiate consuption => Num_times_Foxs_ate = Num_times_Foxs_ate + 1
-                return
+                #return
 
         
 def update_one_unit_time():
