@@ -66,33 +66,62 @@ Wbs = Wms
 #####################################    ABM    ########################################################
 ########################################################################################################
 
+import matplotlib
+matplotlib.use('TkAgg')
+from pylab import *
+import copy as cp
 
-n = 1000 # number of agents
+
+nr = 500. # carrying capacity of rabbits
+r_init = 4 # initial rabbit population
+mr = 0.03 # magnitude of movement of rabbits
+dr = 1.0 # death rate of rabbits when it faces foxes
+rr = 0.1 # reproduction rate of rabbits
+f_init = 2 # initial fox population
+mf = 0.05 # magnitude of movement of foxes
+df = 0.1 # death rate of foxes when there is no food
+rf = 0.5 # reproduction rate of foxes
+cd = 0.02 # radius for collision detection
+cdsq = cd ** 2
+patch_population = 100
+patch_population_limit = 85
+
 class agent:
     pass
+
 
 def initialize():
     global agents
     agents = []
-    for i in xrange(n):
+    #Creating Rabbits
+    for i in xrange(r_init):
         ag = agent()
-        ag.type = randint(2)
+        ag.type = 'r'
+        ag.population = patch_population
+        ag.stay=True
+        ag.x = random()
+        ag.y = random()
+        agents.append(ag)
+
+    #Creating Foxes
+    for i in xrange(2):
+        ag = agent()
+        ag.type = 'f'
+        ag.stay=False
+        ag.broadcast=False
         ag.x = random()
         ag.y = random()
         agents.append(ag)
 
 
-
 def observe():
     global agents
-    cla() #Clear the graph
+    cla()
     rabbits = [ag for ag in agents if ag.type == 'r']
     if len(rabbits) > 0:
         x = [ag.x for ag in rabbits]
         y = [ag.y for ag in rabbits]
         plot(x, y, 'b.')
-
-    
     foxes = [ag for ag in agents if ag.type == 'f']
     if len(foxes) > 0:
         x = [ag.x for ag in foxes]
@@ -102,71 +131,50 @@ def observe():
     axis([0, 1, 0, 1])
 
 
-
-
-nr = 500. # carrying capacity of rabbits
-mr = 0.03 # magnitude of movement of rabbits
-dr = 1.0 # death rate of rabbits when it faces foxes
-rr = 0.1 # reproduction rate of rabbits
-mf = 0.05 # magnitude of movement of foxes
-df = 0.1 # death rate of foxes when there is no food
-rf = 0.5 # reproduction rate of foxes
-cd = 0.02 # radius for collision detection
-cdsq = cd ** 2
-broadcast = True
-
-
 def update():
     global agents
     if agents == []:
         return
+    
     ag = agents[randint(len(agents))]
-    # simulating random movement
-    #if ag.type == 'r': #and not stay:
-    #    m = mr
-    #if ag.type == 'f': #and not consuming
-    #    m = mf
-    m = mr if ag.type == 'r' else mf
-    ag.x += uniform(-m, m)
-    ag.y += uniform(-m, m)
-    ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
-    ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
 
-    # detecting collision 
+    # simulating random movement
+    m = mr if ag.type == 'r' else mf
+
+    for a in agents:    
+        if not ag.stay:
+            ag.x += uniform(-m, m)
+            ag.y += uniform(-m, m)
+            ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
+            ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
+        
+
+    # detecting collision and simulating death or birth
     neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
 
-    if ag.type == 'r': #if Agent is rabbit
+    if ag.type == 'r':
         if len(neighbors) > 0: # if there are foxes nearby
-            #Relocate 
-            #ag.stay = False
-            if random() < dr:
-                agents.remove(ag)
-                return
-            if random() < rr*(1-sum(1 for x in agents if x.type == 'r')/nr):
-                agents.append(cp.copy(ag))
-            
-    else: #if Agent is fox
-
+            ag.population = ag.population - 5 #Population decreases
+            if ag.population < patch_population_limit:
+                ag.population = patch_population
+                ag.stay = False
+            else:
+                ag.stay = True
+            return
+    else: #ag.type = fox
         if len(neighbors) == 0: # if there are no rabbits nearby
-            #Initiate Random Search 
-            if random() < df:
-                agents.remove(ag)
+            #if random() < df:
+                #agents.remove(ag)
+                ag.stay = False
+                ag.broadcast = False    
                 return
-
         else: # if there are rabbits nearby
-            if random() < rf:
-                agents.append(cp.copy(ag))
-            #if broadcast:
-                #Fox initiates Broadcast
-                #Teleport closest Fox/s
-                #Fox/s initiate consuption => Num_times_Foxs_ate = Num_times_Foxs_ate + 1
-                #ag.consume=True
-                #return
-            #else:
-                #Fox/s initiate consuption => Num_times_Foxs_ate = Num_times_Foxs_ate + 1
-                #return
+            ag.stay = True
+            ag.broadcast = True
+            #if random() < rf:
+            #    agents.append(cp.copy(ag))
 
-        
+
 def update_one_unit_time():
     global agents
     t = 0.
@@ -175,6 +183,5 @@ def update_one_unit_time():
         update()
 
 
-
 import pycxsimulator
-pycxsimulator.GUI().start(func=[initialize, observe, update])
+pycxsimulator.GUI().start(func=[initialize, observe, update_one_unit_time])
