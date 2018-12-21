@@ -142,15 +142,27 @@ def update():
     m = mr if ag.type == 'r' else mf
 
     for a in agents:    
-        if not ag.stay:
-            ag.x += uniform(-m, m)
-            ag.y += uniform(-m, m)
-            ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
-            ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
+        if not a.stay:
+            a.x += uniform(-m, m)
+            a.y += uniform(-m, m)
+            a.x = 1 if a.x > 1 else 0 if a.x < 0 else a.x
+            a.y = 1 if a.y > 1 else 0 if a.y < 0 else a.y
         
 
-    # detecting collision and simulating death or birth
+    # detecting collision
     neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
+
+    #check for other foxes broadcast ando move 
+    count_broadcasts=0
+    broadcasting_foxes=[]
+    for a in agents:
+        if a.broadcast:
+            count_broadcasts = count_broadcasts+1
+            broadcasting_foxes.append((a.x,a.y))
+
+    if ag.type == 'f' and count_broadcasts>0 and count_broadcasts<f_init:
+        #Fox should move to closest broadcasting fox
+        pass
 
     if ag.type == 'r':
         if len(neighbors) > 0: # if there are foxes nearby
