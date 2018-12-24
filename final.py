@@ -71,8 +71,6 @@ matplotlib.use('TkAgg')
 from pylab import *
 import copy as cp
 
-
-nr = 500. # carrying capacity of rabbits
 r_init = 4 # initial rabbit population
 mr = 0.03 # magnitude of movement of rabbits
 
@@ -83,9 +81,10 @@ cd = 0.02 # radius for collision detection
 cdsq = cd ** 2
 patch_population_max = 100
 
-patch_population_limit = 85
-consumption_rate=5
-
+patch_population_limit = 65
+consumption_rate=1
+steps=0
+steps_report=100
 sharing = False
 
 
@@ -113,7 +112,7 @@ def initialize():
         agents.append(ag)
 
     #Creating Foxes
-    for i in xrange(2):
+    for i in xrange(f_init):
         ag = agent()
         ag.type = 'f'
         ag.current_state="searching"
@@ -121,6 +120,8 @@ def initialize():
         ag.broadcast=False
         ag.x = random()
         ag.y = random()
+        ag.searching=0
+        ag.eating=0
         agents.append(ag)
 
 
@@ -143,126 +144,163 @@ def observe():
 
 def update():
     global agents
-    if agents == []:
-        return
-    
+    global steps, steps_report
+    steps=steps+1
+
+    # report eating efficiency
+    eating=0
+    if steps%steps_report==0:
+        print "Pasos: ", steps
+        for a in agents:
+            if a.type=='f':
+                print 1.0*a.eating/steps # for each fox
+                eating=eating+a.eating
+        print 1.0*eating/steps # for all foxes
+
     ag = agents[randint(len(agents))]
 
     # simulating random movement
     m = mr if ag.type == 'r' else mf
 
     if sharing:
-        broadcasters_list=[]
-        for a in agents:
-            if a.type=='f' and a.broadcast==True:
-                broadcasters_list.append(a)
-        
-
-        if ag.type=='f' and ag.current_state=="searching" and not broadcasters_list:
+        if ag.type=='f' and ag.current_state=="searching":
+            # movement
             ag.x += uniform(-m, m)
             ag.y += uniform(-m, m)
             ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
             ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
             # detecting collision
             neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
-            if len(neighbors) > 0: # if there are rabbit nearby
-                ag.current_state="consuming_alone"
+            if len(neighbors) > 0: # if there are rabbits nearby
                 ag.broadcast=True
-
-        
-        if ag.type=='f' and ag.current_state=="searching" and broadcasters_list:
-            #Not all foxes are broadcasting so this fox will move_to_friend
-            if len(broadcasters_list)>0 and len(broadcasters_list)<f_init:
-                ag.x += broadcasters_list[0].x-ag.x
-                ag.y += broadcasters_list[0].y-ag.y
-                ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
-                ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
-                ag.current_state="moving_to_friend"
-
+                ag.current_state="consuming_alone"
+            else: # did someone find prey?
+                ag.broadcast=False
+                for a in agents:
+                    if a.type=="f" and a.broadcast:
+                        ag.current_state="moving_to_friend"
+                        break
+                    else:
+                        ag.current_state="searching"
+            ag.searching=ag.searching+1
          
         if ag.type=='f' and ag.current_state=="consuming_alone":
+            # no movement
             # detecting collision
             neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
-            if len(neighbors) > 0: # if there are rabbit nearby
-                ag.current_state="consuming_alone"
-                nb.population=nb.population-consumption_rate
+            if len(neighbors) > 0: # if there are rabbits nearby
                 ag.broadcast=True
+                ag.current_state="consuming_alone"
+                # consume from first patch
+                nb= neighbors[0] 
+                nb.patch_population_curr=nb.patch_population_curr-consumption_rate
+                ag.eating=ag.eating+1
             else:
-                ag.current_state="searching"
                 ag.broadcast=False
-                
+                ag.current_state="searching"
+                ag.searching=ag.searching+1
             
         if ag.type=='f' and ag.current_state=="moving_to_friend":
+            #Moving to friend
+            for a in agents:
+                if a.type=="f":
+                    if a.broadcast:
+                        distancia=distance_between_2_points(a.x,a.y,ag.x,ag.y)
+                        ag.x+=(a.x-ag.x)*m/distancia
+                        ag.y+=(a.y-ag.y)*m/distancia
+                        ag.current_state="moving_to_friend"
+                        break
+                    else:
+                        ag.x += uniform(-m, m)
+                        ag.y += uniform(-m, m)
+                        ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
+                        ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
+                        ag.current_state="searching"
             # detecting collision
             neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
-            if len(neighbors) > 0 and 0<distance_between_2_points(ag.x,ag.y,broadcasters_list[0].x,broadcasters_list[0].y)<=cd : # if there are rabbit nearby
+            # we assume we got to the same patch as the predator that broadcasted
+            if len(neighbors) > 0:
                 ag.current_state="consuming_with_friend"
-                ag.broadcast=True
-
+            else:
+                ag.current_state="moving_to_friend"
+            ag.searching=ag.searching+1
 
         if ag.type=='f' and ag.current_state=="consuming_with_friend":
+            #No movement
             neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
-            if len(neighbors) > 0: # if there are rabbit nearby
-                nb.population=nb.population-2*consumption_rate
+            if len(neighbors) > 0: # if there are rabbits nearby
+                # consumimos del primer parche en la lista
+                nb=neighbors[0]
+                nb.patch_population_curr=nb.patch_population_curr-consumption_rate
                 ag.broadcast=True
+                ag.current_state="consuming_with_friend"
+                ag.eating=ag.eating+1
             else:
                 ag.current_state="searching"
                 ag.broadcast=False
+                ag.searching=ag.searching+1
 
-
-
-        ########################################################################
         if ag.type=='r' and ag.current_state=="static":
-            if ag.patch_population_curr < ag.patch_population_limit:
+            if ag.patch_population_curr < patch_population_limit:
                 ag.current_state="run"
         
-    
         if ag.type=='r' and ag.current_state=="run":
-            ag.x += uniform(-m, m)
-            ag.y += uniform(-m, m)
-            ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
-            ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
+            ag.x = random()
+            ag.y = random()
+
+            #ag.x += uniform(-m, m)
+            #ag.y += uniform(-m, m)
+            #ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
+            #ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
+            
             ag.patch_population_curr=patch_population_max
             ag.current_state="static" 
     
         return
-    else:
+    else: # not sharing information
         if ag.type=='f' and ag.current_state=="searching":
+            # esto mueve en un CUADRADO de m*m, no en un CIRCULO
             ag.x += uniform(-m, m)
             ag.y += uniform(-m, m)
+            # esto limita a 1 valores mayores a 1 y a 0 valores menores a 0 (NO CICLICO)
             ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
             ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
             # detecting collision
             neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
             if len(neighbors) > 0: # if there are rabbit nearby
                 ag.current_state="consuming_alone"
+            ag.searching=ag.searching+1
             
         if ag.type=='f' and ag.current_state=="consuming_alone":
             # detecting collision
             neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
             if len(neighbors) > 0: # if there are rabbit nearby
+                nb = neighbors[0]
                 ag.current_state="consuming_alone"
-                nb.population=nb.population-consumption_rate
+                nb.patch_population_curr=nb.patch_population_curr-consumption_rate
+                ag.eating=ag.eating+1
             else:
                 ag.current_state="searching"
-                #population modification was here!? and not in consuming_alone 
+                ag.searching=ag.searching+1
             
         if ag.type=='r' and ag.current_state=="static":
-            if ag.patch_population_curr < ag.patch_population_limit:
+            if ag.patch_population_curr < patch_population_limit:
                 ag.current_state="run"
         
     
         if ag.type=='r' and ag.current_state=="run":
-            ag.x += uniform(-m, m)
-            ag.y += uniform(-m, m)
-            ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
-            ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
+            ag.x = random()
+            ag.y = random()
+
+            #ag.x += uniform(-m, m)
+            #ag.y += uniform(-m, m)
+            #ag.x = 1 if ag.x > 1 else 0 if ag.x < 0 else ag.x
+            #ag.y = 1 if ag.y > 1 else 0 if ag.y < 0 else ag.y
+            
             ag.patch_population_curr=patch_population_max
             ag.current_state="static" 
     
         return
-
-
 
 
 def update_one_unit_time():
