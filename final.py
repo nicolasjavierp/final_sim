@@ -29,21 +29,24 @@ matplotlib.use('TkAgg')
 from pylab import *
 import copy as cp
 
-r_init = 4 # initial rabbit population
+r_init = 6 # initial rabbit population
 mr = 0.03 # magnitude of movement of rabbits
 
 f_init = 2 # initial fox population
 mf = 0.05 # magnitude of movement of foxes
 
-cd = 0.02 # radius for collision detection
+cd = 0.03 # radius for collision detection
 cdsq = cd ** 2
 patch_population_max = 100
 
 patch_population_limit = 65
 consumption_rate=1
 steps=0
-steps_report=100
-sharing = False
+steps_report=1000
+max_steps = 20000
+sharing = True
+
+s=[]
 
 
 def distance_between_2_points(x1,y1,x2,y2):
@@ -107,12 +110,17 @@ def update():
     # report eating efficiency
     eating=0
     if steps%steps_report==0:
-        print "Pasos: ", steps
+        #print "Pasos: ", steps
         for a in agents:
             if a.type=='f':
-                print 1.0*a.eating/steps # for each fox
+                #print 1.0*a.eating/steps # for each fox
                 eating=eating+a.eating
-        print 1.0*eating/steps # for all foxes
+        #print 1.0*eating/steps
+        s.append(1.0*eating/steps)
+        # for all fo xes
+        if steps==max_steps:
+            print s
+            exit()
 
     ag = agents[randint(len(agents))]
 
@@ -175,7 +183,7 @@ def update():
                         ag.current_state="searching"
             # detecting collision
             neighbors = [nb for nb in agents if nb.type != ag.type and (ag.x - nb.x)**2 + (ag.y - nb.y)**2 < cdsq]
-            # we assume we got to the same patch as the predator that broadcasted
+            # we assume we go to the same patch as the predator that broadcasted
             #TODO fix above
             if len(neighbors) > 0:
                 ag.current_state="consuming_with_friend"
