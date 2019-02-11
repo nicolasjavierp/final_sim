@@ -37,9 +37,9 @@ mf = 0.05 # magnitude of movement of foxes
 
 cd = 0.03 # radius for collision detection
 cdsq = cd ** 2
-patch_population_max = 100
+patch_population_max = 500
 
-patch_population_limit = 65
+patch_population_limit = 50
 consumption_rate=1
 steps=0
 steps_report=1000
